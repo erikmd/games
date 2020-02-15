@@ -13,14 +13,24 @@ Local Open Scope ring_scope.
 
 (** This module defines an interface over multiplayer games. *)
 
-(** Operational type classes for 'cost' and 'moves'; 
-    cf. "Type Classes for Mathematics in Type Theory", 
+(** Operational type classes for 'cost' and 'moves';
+    cf. "Type Classes for Mathematics in Type Theory",
         Spitters and van der Weegen,
-        http://www.eelis.net/research/math-classes/mscs.pdf*)
+        http://www.eelis.net/research/math-classes/mscs.pdf *)
 
-Class CostClass (cN : nat) (rty : realFieldType) (cT : finType) :=
+Class CostClass (cN : nat) (rty : realFieldType) (cT : Type) :=
   cost_fun : 'I_cN -> {ffun 'I_cN -> cT} -> rty.
 Notation "'cost'" := (@cost_fun _ _ _) (at level 30).
+
+Class MovesClass (mN : nat) (mT : Type) :=
+  moves_fun : 'I_mN -> rel mT.
+Notation "'moves'" := (@moves_fun _ _) (at level 50).
+
+(** If [T] is a [finType], we get a so-called finite [game] *)
+Class game (T : Type) (N : nat) (rty : realFieldType)
+      `(costClass : CostClass N rty T)
+       (movesClass : MovesClass N T)
+  : Type := {}.
 
 Class CostAxiomClass cN rty cT `(CostClass cN rty cT) :=
   cost_axiom (i : 'I_cN) (f : {ffun 'I_cN -> cT}) : 0 <= cost i f.
@@ -31,12 +41,8 @@ Section costLemmas.
   Lemma cost_nonneg i f : 0 <= cost i f.
   Proof. apply: cost_axiom. Qed.
 End costLemmas.
-  
-Class MovesClass (mN : nat) (mT : finType) :=
-  moves_fun : 'I_mN -> rel mT.
-Notation "'moves'" := (@moves_fun _ _) (at level 50).
 
-Class game (T : finType) (N : nat) (rty : realFieldType) 
+Class cost_game (T : Type) (N : nat) (rty : realFieldType)
       `(costAxiomClass : CostAxiomClass N rty T)
        (movesClass : MovesClass N T)
   : Type := {}.
@@ -54,7 +60,7 @@ Section negativeCostLemmas.
   Proof. apply: negative_cost_axiom. Qed.
 End negativeCostLemmas.
 
-Class negative_cost_game (T : finType) (N : nat) (rty : realFieldType) 
+Class negative_cost_game (T : Type) (N : nat) (rty : realFieldType) 
       `(negativeCostAxiomClass : NegativeCostAxiomClass N rty T)
        (movesClass : MovesClass N T)
   : Type := {}.
@@ -65,7 +71,7 @@ Class negative_cost_game (T : finType) (N : nat) (rty : realFieldType)
 (****************)
 (** Payoff game *)
 
-Class PayoffClass (cN : nat) (rty : realFieldType) (cT : finType) :=
+Class PayoffClass (cN : nat) (rty : realFieldType) (cT : Type) :=
   payoff_fun : 'I_cN -> {ffun 'I_cN -> cT} -> rty.
 Notation "'payoff'" := (@payoff_fun _ _ _) (at level 30).
 
@@ -79,7 +85,7 @@ Section payoffLemmas.
   Proof. apply: payoff_axiom. Qed.
 End payoffLemmas.
 
-Class payoff_game (T : finType) (N : nat) (rty : realFieldType)
+Class payoff_game (T : Type) (N : nat) (rty : realFieldType)
       `(payoffAxiomClass : PayoffAxiomClass N rty T)
        (movesClass : MovesClass N T)
   : Type := {}.
@@ -91,7 +97,7 @@ Class payoff_game (T : finType) (N : nat) (rty : realFieldType)
 (** Payoff game -> negative cost game *)
 
 Instance negativeCostInstance_of_payoffInstance
-         N rty (T : finType)
+         N rty (T : Type)
          `(payoffInstance : @PayoffClass N rty T)
   : CostClass _ _ _ :=
   fun i f => - payoff i f.
@@ -99,7 +105,7 @@ Instance negativeCostInstance_of_payoffInstance
 (* 0 <= payoff -> cost <= 0 *)
 
 Instance negativeCostAxiomInstance_of_payoffAxiomInstance
-         N rty (T : finType)
+         N rty (T : Type)
          `(payoffAxiomInstance : PayoffAxiomClass N rty T) :
   NegativeCostAxiomClass (negativeCostInstance_of_payoffInstance _).
 Proof.
@@ -109,7 +115,7 @@ Proof.
 Qed.
 
 Instance negative_cost_game_of_payoff_game
-         N rty (T : finType)
+         N rty (T : Type)
          `(_ : payoff_game T N rty)
   : negative_cost_game _ _ :=
   Build_negative_cost_game
@@ -162,29 +168,27 @@ End payoffGameDefs.
 Section gameDefs.
   Context {T} {N} `(gameAxiomClassA : game T N).
 
-  (** We assume there's at least one strategy vector. 
-      (In fact, we assume two -- though they may equal one another. 
-       This makes it easier to state potentially conflicting assumptions on 
-       distinct uses of t0 and t1.*)
-  Variable t0 : state N T.
-  Variable t1 : state N T.   
-  
   Definition upd (i : 'I_N) :=
     [fun t : (T ^ N)%type =>
-       [fun t_i' : T => 
+       [fun t_i' : T =>
           finfun (fun j => if i == j then t_i' else t j)]].
-  
+
   (** [t] is a Pure Nash Equilibrium (PNE) if no player is better off
       by moving to another strategy. *)
   Definition PNE (t : state N T) : Prop :=
     forall (i : 'I_N) (t_i' : T),
       moves i (t i) t_i' -> cost i t <= cost i (upd i t t_i').
 
+End gameDefs.
+
+Section gameDefs2.
+  Context {T : finType} {N} `(gameClass : game T N).
+
   (** PNE is decidable. *)
   Definition PNEb (t : state N T) : bool :=
     [forall i : 'I_N,
       [forall t_i' : T,
-        moves i (t i) t_i' ==> (cost i t <= cost i (upd i t t_i'))]].    
+        moves i (t i) t_i' ==> (cost i t <= cost i (upd i t t_i'))]].
 
   Lemma PNE_PNEb t : PNE t <-> PNEb t.
   Proof.
@@ -206,22 +210,34 @@ Section gameDefs.
     by rewrite -H2.
   Qed.
 
+End gameDefs2.
+
+Section gameDefs3.
+  Context {T : finType} {N} `(gameAxiomClass : cost_game T N).
+
   (** The social Cost of a state is the sum of all players' costs. *)
   Definition Cost (t : state N T) : rty := \sum_i (cost i t).
 
   Lemma Cost_nonneg t : 0 <= Cost t.
   Proof. by apply: sumr_ge0 => i _; apply: cost_nonneg. Qed.
-  
+
   (** A state is optimal if its social cost can't be improved. *)
   Definition optimal : pred (state N T) :=
     fun t => [forall t0, Cost t <= Cost t0].
+
+  (** We assume there's at least one strategy vector.
+      (In fact, we assume two -- though they may equal one another.
+       This makes it easier to state potentially conflicting assumptions on
+       distinct uses of t0 and t1.*)
+  Variable t0 : state N T.
+  Variable t1 : state N T.
 
   Lemma arg_min_optimal_eq : optimal (arg_min predT Cost t0).
   Proof.
     have Hx: predT t0 by [].
     case: (andP (@arg_minP _ _ predT Cost t0 Hx)) => Hy Hz.
     apply/forallP => t2; apply: (forallP Hz).
-  Qed.    
+  Qed.
 
   (** The Price of Anarchy for game [T] is the ratio of WORST 
       equilibrium social cost to optimal social cost. We want the 
@@ -251,7 +267,12 @@ Section gameDefs.
     move: (Cost_nonneg (arg_min predT Cost t1)); rewrite le0r; move/orP; case => //.
     by move/eqP => Hy; rewrite Hy eq_refl in Hx. 
   Qed.
-  
+
+End gameDefs3.
+
+Section gameDefs4.
+  Context {T : finType} {N} `(gameClass : game T N).
+
   (** The expected cost (to player [i]) of a particular distribution
       over configurations.  Note that the distribution [d] need not
       be a product distribution -- in order to define Coarse
@@ -272,7 +293,7 @@ Section gameDefs.
     rewrite /ExpectedCost /expectedCost /expectedValue.
     by rewrite -exchange_big=> /=; apply/congr_big=> //= i _; rewrite mulr_sumr.
   Qed.
-  
+
   Definition expectedCondCost
              (i : 'I_N)
              (d : dist [finType of state N T] rty)
@@ -281,7 +302,7 @@ Section gameDefs.
       d
       (fun t : state N T => cost i t)
       [pred tx : state N T | tx i == t_i].
-  
+
   (** The expected cost of an i-unilateral deviation to strategy [t' i] *)
   Definition expectedUnilateralCost
              (i : 'I_N)
@@ -308,7 +329,7 @@ Section gameDefs.
       d
       (fun t : state N T => cost i (upd i t t_i'))
       [pred tx : state N T | tx i == t_i].
-  
+
   (** \epsilon-Approximate Correlated Equilibria
       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       The expected cost of a unilateral deviation to state (t' i), 
@@ -341,8 +362,8 @@ Section gameDefs.
     move: (forallP (H1 ix)); move/(_ t_i)/forallP/(_ t')/implyP; apply.
     apply/forallP => t''; apply/implyP; move/eqP => He; subst t_i.
     by apply/implyP => H4; apply: H2.
-  Qed.    
-    
+  Qed.
+
   Lemma eCEP eps d : reflect (eCE eps d) (eCEb eps d).
   Proof.
     move: (eCE_eCEb eps d); case H1: (eCEb eps d).
@@ -481,7 +502,12 @@ Section gameDefs.
     \sum_(ti : T) \sum_(t : state N T | [pred tx | tx i == ti] t) f t =
     \sum_t f t.
   Proof. by rewrite -(marginal_unfold f i) pair_big_dep //. Qed.
-  
+
+End gameDefs4.
+
+Section gameDefs5.
+  Context {T : finType} {N} `(gameAxiomClass : cost_game T N).
+
   Lemma CE_CCE d : CE d -> CCE d.
   Proof.
     move => Hx i t_i' H2; rewrite /CE in Hx; move: (Hx i).
@@ -568,10 +594,9 @@ Section gameDefs.
     
   Lemma CCEP d : reflect (CCE d) (CCEb d).
   Proof. apply: eCCEP. Qed.
-End gameDefs.
 
-Section PNE_implies_MNE.
-  Context {T} {N} `(gameAxiomClassA : game T N) {t0:T}.
+  Section PNE_implies_MNE.
+  Context {t0:T}.
 
   (** Product with a zero is equal to 0 *)
   (*  May be much more general *)
@@ -962,4 +987,6 @@ Section PNE_implies_MNE.
   }
   Qed.
 
-End PNE_implies_MNE.
+  End PNE_implies_MNE.
+
+End gameDefs5.

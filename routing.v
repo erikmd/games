@@ -129,7 +129,7 @@ Section AtomicRoutingGame.
     : MovesClass num_players [finType of strategy_pkg]
     := movesFun.
 
-  Instance gameInstance : game costAxiomInstance movesInstance := {}.
+  Instance gameInstance : cost_game costAxiomInstance movesInstance := {}.
   
   Definition phiFun (s : st) : rty :=
     \sum_(x : 'I_#|T|)

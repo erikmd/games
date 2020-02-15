@@ -18,7 +18,7 @@ Require Import extrema dist games dynamics.
 Local Open Scope ring_scope.
 
 Section ValidMove.
-  Context T `{gameClass : game T}.
+  Context T `{gameClass : cost_game T}.
   
   Definition valid_Move (t t' : (T ^ N)%type) :=
     forall i : 'I_N, moves i (t i) (t' i).
@@ -51,7 +51,7 @@ Class MuAxiomClass (mT : finType) (rty : realFieldType)
 Class SmoothnessAxiomClass (sT : finType) (sN : nat) (rty : realFieldType)
       `(costAxiomInstance : CostAxiomClass sN rty sT)
       (movesInstance : MovesClass sN sT)
-      (gameInstance : game costAxiomInstance movesInstance)
+      (gameInstance : cost_game costAxiomInstance movesInstance)
       `(lambdaAxiomInstance : LambdaAxiomClass sT rty)
       `(muAxiomInstance : MuAxiomClass sT rty) : Type :=
   SmoothnessAxiom :
@@ -64,7 +64,7 @@ Notation "'smooth_ax'" := (@SmoothnessAxiom _ _ _ _ _ _ _ _).
 Class smooth (T : finType) (N : nat) (rty : realFieldType)
       `(costAxiomInstance : CostAxiomClass N rty T)
       (movesInstance : MovesClass N T)
-      (gameInstance : game costAxiomInstance movesInstance)
+      (gameInstance : cost_game costAxiomInstance movesInstance)
       `(lambdaAxiomInstance : LambdaAxiomClass T rty)
       `(muAxiomInstance : MuAxiomClass T rty)
       (smoothnessAxiomInstance :

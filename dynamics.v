@@ -148,7 +148,7 @@ Section stepDefs.
 End stepDefs.
 
 Section history.
-  Context `{gameClass : game}.
+  Context {T : finType} `{gameClass : cost_game T}.
   Notation sT := (state N T).
   Context {step : sT -> sT -> Prop}.
 
@@ -198,7 +198,7 @@ Section history.
     case: sut=> [][]s u t; case: sut'=> [][]s' u' t' H1 Hx H2; move: H1.
     inversion H2; subst.
     split.
-    { case: H1=> H4 H5; split.
+    { case: H1 => H4 H5; split.
       { move=> x /=.
         move: (H4 x)=> /= <-.
         case H9: (s x)=> //=.
